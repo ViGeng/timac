@@ -43,11 +43,11 @@ struct AppUsageSummary: Identifiable {
         let seconds = Int(totalDuration) % 60
         
         if hours > 0 {
-            return String(format: "%dh %dm", hours, minutes)
+            return String(format: "%2dh %2dm", hours, minutes)
         } else if minutes > 0 {
-            return String(format: "%dm %ds", minutes, seconds)
+            return String(format: "%2dm %2ds", minutes, seconds)
         } else {
-            return String(format: "%ds", seconds)
+            return String(format: "    %2ds", seconds)
         }
     }
 }
