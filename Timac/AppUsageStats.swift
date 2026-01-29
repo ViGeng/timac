@@ -34,6 +34,7 @@ enum TimeScale: String, CaseIterable {
 struct AppUsageSummary: Identifiable {
     let id = UUID()
     let appName: String
+    let bundleIdentifier: String?
     let totalDuration: TimeInterval
     
     var formattedDuration: String {
@@ -68,7 +69,7 @@ class AppUsageStats {
     }
     
     private static func aggregateRecords(_ records: [AppUsageRecord]) -> [AppUsageSummary] {
-        var appDurations: [String: TimeInterval] = [:]
+        var appDurations: [String: (duration: TimeInterval, bundleId: String?)] = [:]
         let now = Date()
         
         for record in records {
@@ -76,11 +77,15 @@ class AppUsageStats {
             let end = record.frontEnd ?? now
             let duration = end.timeIntervalSince(begin)
             
-            appDurations[appName, default: 0] += duration
+            if let existing = appDurations[appName] {
+                appDurations[appName] = (existing.duration + duration, existing.bundleId ?? record.bundleIdentifier)
+            } else {
+                appDurations[appName] = (duration, record.bundleIdentifier)
+            }
         }
         
         return appDurations
-            .map { AppUsageSummary(appName: $0.key, totalDuration: $0.value) }
+            .map { AppUsageSummary(appName: $0.key, bundleIdentifier: $0.value.bundleId, totalDuration: $0.value.duration) }
             .sorted { $0.totalDuration > $1.totalDuration }
     }
 }

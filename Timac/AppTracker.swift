@@ -23,6 +23,8 @@ class AppTracker: ObservableObject {
     
     private init() {
         self.viewContext = PersistenceController.shared.container.viewContext
+        // Start tracking by default
+        startTracking()
     }
     
     func startTracking() {

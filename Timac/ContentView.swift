@@ -26,55 +26,46 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal, 10)
-            .padding(.top, 10)
-            .padding(.bottom, 6)
-            
-            // Header
-            HStack {
-                Text("App Usage")
-                    .font(.headline)
-                Spacer()
-                Circle()
-                    .fill(tracker.isTracking ? Color.green : Color.gray)
-                    .frame(width: 8, height: 8)
-            }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
             
             Divider()
             
             // App list
             if usageStats.isEmpty {
-                VStack {
+                VStack(spacing: 8) {
                     Spacer()
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary.opacity(0.5))
                     Text("No data yet")
                         .foregroundColor(.secondary)
-                    if !tracker.isTracking {
-                        Text("Click Start to begin tracking")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 2) {
                         ForEach(usageStats) { stat in
                             AppUsageRow(stat: stat)
                         }
                     }
+                    .padding(.vertical, 4)
                 }
             }
             
             Divider()
             
             // Controls
-            HStack {
+            HStack(spacing: 12) {
                 Button(action: toggleTracking) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(tracker.isTracking ? Color.green : Color.gray)
+                            .frame(width: 8, height: 8)
                         Image(systemName: tracker.isTracking ? "pause.fill" : "play.fill")
+                            .font(.system(size: 11))
                         Text(tracker.isTracking ? "Pause" : "Start")
                     }
                 }
@@ -87,7 +78,8 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            .padding(10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
         .frame(width: 300, height: 380)
         .onAppear {
@@ -118,16 +110,43 @@ struct AppUsageRow: View {
     let stat: AppUsageSummary
     
     var body: some View {
-        HStack {
+        HStack(spacing: 10) {
+            // App icon
+            AppIconView(bundleIdentifier: stat.bundleIdentifier)
+                .frame(width: 24, height: 24)
+            
             Text(stat.appName)
                 .lineLimit(1)
+                .truncationMode(.tail)
+            
             Spacer()
+            
             Text(stat.formattedDuration)
-                .font(.system(.body, design: .monospaced))
+                .font(.system(.callout, design: .monospaced))
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
+        .background(Color.primary.opacity(0.03))
+        .cornerRadius(6)
+        .padding(.horizontal, 8)
+    }
+}
+
+struct AppIconView: View {
+    let bundleIdentifier: String?
+    
+    var body: some View {
+        if let bundleId = bundleIdentifier,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Image(systemName: "app.fill")
+                .font(.system(size: 18))
+                .foregroundColor(.secondary)
+        }
     }
 }
 
