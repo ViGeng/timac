@@ -17,6 +17,10 @@ struct ContentView: View {
     
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
+    private var maxDuration: TimeInterval {
+        usageStats.first?.totalDuration ?? 1
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Time scale picker
@@ -26,7 +30,7 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 8)
             .padding(.top, 12)
             .padding(.bottom, 8)
             
@@ -46,12 +50,13 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 2) {
+                    LazyVStack(spacing: 4) {
                         ForEach(usageStats) { stat in
-                            AppUsageRow(stat: stat)
+                            AppUsageRow(stat: stat, maxDuration: maxDuration)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
                 }
             }
             
@@ -81,7 +86,7 @@ struct ContentView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
-        .frame(width: 300, height: 380)
+        .frame(width: 300, height: 400)
         .onAppear {
             refreshStats()
         }
@@ -108,6 +113,12 @@ struct ContentView: View {
 
 struct AppUsageRow: View {
     let stat: AppUsageSummary
+    let maxDuration: TimeInterval
+    
+    private var barRatio: CGFloat {
+        guard maxDuration > 0 else { return 0 }
+        return CGFloat(stat.totalDuration / maxDuration)
+    }
     
     var body: some View {
         HStack(spacing: 10) {
@@ -118,18 +129,29 @@ struct AppUsageRow: View {
             Text(stat.appName)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
-            
-            Text(stat.formattedDuration)
-                .font(.system(.callout, design: .monospaced))
-                .foregroundColor(.secondary)
+            // Duration bar + text
+            HStack(spacing: 6) {
+                // Histogram bar
+                GeometryReader { geo in
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.accentColor.opacity(0.7))
+                        .frame(width: geo.size.width * barRatio)
+                }
+                .frame(width: 50, height: 12)
+                
+                // Duration text with fixed width for alignment
+                Text(stat.formattedDuration)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 58, alignment: .trailing)
+            }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(Color.primary.opacity(0.03))
         .cornerRadius(6)
-        .padding(.horizontal, 8)
     }
 }
 
