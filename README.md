@@ -16,21 +16,26 @@ A simple macOS menu bar app that tracks time spent on each application.
 
 ### Option 1: Download from GitHub Releases
 
-1. Go to the [Releases](https://github.com/nicegui/Timac/releases) page
+1. Go to the [Releases](https://github.com/ViGeng/Timac/releases) page
 2. Download `Timac.dmg` or `Timac.zip`
 3. Open the DMG and drag Timac to Applications, or unzip and move to Applications
+4. **Important**: Since the app is not notarized, you need to remove the quarantine attribute:
+   ```bash
+   xattr -cr /Applications/Timac.app
+   ```
+   Or right-click the app → Open → Open (to bypass Gatekeeper once)
 
 ### Option 2: Homebrew (coming soon)
 
 ```bash
-brew tap nicegui/tap
+brew tap ViGeng/tap
 brew install --cask timac
 ```
 
 ### Option 3: Build from source
 
 ```bash
-git clone https://github.com/nicegui/Timac.git
+git clone https://github.com/ViGeng/Timac.git
 cd Timac
 xcodebuild -project Timac.xcodeproj -scheme Timac -configuration Release
 ```

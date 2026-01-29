@@ -34,10 +34,14 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export app
+      - name: Export and sign app
         run: |
           mkdir -p build/app
           cp -R build/Timac.xcarchive/Products/Applications/Timac.app build/app/
+          # Ad-hoc sign to avoid "damaged app" errors
+          codesign --force --deep --sign - build/app/Timac.app
+          # Remove quarantine attribute
+          xattr -cr build/app/Timac.app
 
       - name: Create DMG
         run: |
