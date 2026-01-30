@@ -14,6 +14,7 @@ struct ContentView: View {
     @ObservedObject private var tracker = AppTracker.shared
     @State private var usageStats: [AppUsageSummary] = []
     @State private var selectedTimeScale: TimeScale = .today
+    @State private var showResetAlert = false
     
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -63,7 +64,7 @@ struct ContentView: View {
             Divider()
             
             // Controls
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Button(action: toggleTracking) {
                     HStack(spacing: 6) {
                         Circle()
@@ -75,6 +76,13 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.bordered)
+                
+                Button(action: { showResetAlert = true }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.bordered)
+                .help("Reset all data")
                 
                 Spacer()
                 
@@ -96,6 +104,14 @@ struct ContentView: View {
         .onChange(of: selectedTimeScale) { _, _ in
             refreshStats()
         }
+        .alert("Reset All Data?", isPresented: $showResetAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset", role: .destructive) {
+                resetAllData()
+            }
+        } message: {
+            Text("This will permanently delete all app usage history. This action cannot be undone.")
+        }
     }
     
     private func toggleTracking() {
@@ -108,6 +124,26 @@ struct ContentView: View {
     
     private func refreshStats() {
         usageStats = AppUsageStats.fetchUsage(context: viewContext, timeScale: selectedTimeScale)
+    }
+    
+    private func resetAllData() {
+        // Stop tracking first
+        tracker.stopTracking()
+        
+        // Delete all records
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = AppUsageRecord.fetchRequest()
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+        
+        do {
+            try viewContext.execute(deleteRequest)
+            try viewContext.save()
+            usageStats = []
+        } catch {
+            print("Failed to reset data: \(error)")
+        }
+        
+        // Resume tracking
+        tracker.startTracking()
     }
 }
 
