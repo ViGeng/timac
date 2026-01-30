@@ -67,7 +67,7 @@ jobs:
           cd build/app
           zip -r ../Timac.zip Timac.app
 
-      - name: Get version
+      - name: Get version and SHA256
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
@@ -75,6 +75,9 @@ jobs:
           else
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
+          # Calculate SHA256 of DMG
+          SHA256=$(shasum -a 256 build/Timac.dmg | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -102,10 +105,61 @@ jobs:
             
             **Option 3: Homebrew**
             ```bash
+            brew tap ViGeng/tap
             brew install --cask timac
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew Cask
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.version.outputs.sha256 }}"
+          
+          # Clone the homebrew-tap repo
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/ViGeng/homebrew-tap.git
+          cd homebrew-tap
+          
+          # Create Casks directory if not exists
+          mkdir -p Casks
+          
+          # Generate the cask formula
+          cat > Casks/timac.rb << EOF
+          cask "timac" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/ViGeng/Timac/releases/download/v#{version}/Timac.dmg"
+            name "Timac"
+            desc "Menu bar app for tracking time spent on applications"
+            homepage "https://github.com/ViGeng/Timac"
+
+            depends_on macos: ">= :ventura"
+
+            app "Timac.app"
+
+            postflight do
+              system_command "/usr/bin/xattr",
+                             args: ["-cr", "#{appdir}/Timac.app"],
+                             sudo: false
+            end
+
+            zap trash: [
+              "~/Library/Application Support/Timac",
+              "~/Library/Preferences/com.timac.Timac.plist",
+              "~/Library/Saved Application State/com.timac.Timac.savedState",
+            ]
+          end
+          EOF
+          
+          # Commit and push
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Casks/timac.rb
+          git commit -m "Update timac to v${VERSION}" || echo "No changes to commit"
+          git push
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

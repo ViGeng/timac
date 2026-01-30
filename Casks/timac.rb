@@ -22,6 +22,12 @@ cask "timac" do
 
   app "Timac.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/Timac.app"],
+                   sudo: false
+  end
+
   zap trash: [
     "~/Library/Application Support/Timac",
     "~/Library/Preferences/com.timac.Timac.plist",
