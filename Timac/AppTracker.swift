@@ -19,12 +19,71 @@ class AppTracker: ObservableObject {
     
     private var currentRecord: AppUsageRecord?
     private var workspaceObserver: NSObjectProtocol?
+    private var sleepObserver: NSObjectProtocol?
+    private var wakeObserver: NSObjectProtocol?
+    private var wasTrackingBeforeSleep = false
     private let viewContext: NSManagedObjectContext
+    
+    // Apps to ignore (system processes, not real user apps)
+    private let ignoredBundleIdentifiers: Set<String> = [
+        "com.apple.loginwindow",
+        "com.apple.SecurityAgent",
+        "com.apple.UserNotificationCenter",
+    ]
     
     private init() {
         self.viewContext = PersistenceController.shared.container.viewContext
+        setupSleepWakeObservers()
         // Start tracking by default
         startTracking()
+    }
+    
+    private func setupSleepWakeObservers() {
+        // Observe system sleep
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleSystemSleep()
+            }
+        }
+        
+        // Observe system wake
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleSystemWake()
+            }
+        }
+    }
+    
+    private func handleSystemSleep() {
+        wasTrackingBeforeSleep = isTracking
+        if isTracking {
+            // End current record but keep isTracking true for UI
+            endCurrentRecord()
+        }
+    }
+    
+    private func handleSystemWake() {
+        if wasTrackingBeforeSleep && isTracking {
+            // Resume tracking the frontmost app after wake
+            if let app = NSWorkspace.shared.frontmostApplication {
+                if shouldTrackApp(app) {
+                    startRecordingApp(app)
+                }
+            }
+        }
+    }
+    
+    private func shouldTrackApp(_ app: NSRunningApplication) -> Bool {
+        guard let bundleId = app.bundleIdentifier else { return true }
+        return !ignoredBundleIdentifiers.contains(bundleId)
     }
     
     func startTracking() {
@@ -32,7 +91,7 @@ class AppTracker: ObservableObject {
         isTracking = true
         
         // Record the current frontmost app
-        if let app = NSWorkspace.shared.frontmostApplication {
+        if let app = NSWorkspace.shared.frontmostApplication, shouldTrackApp(app) {
             startRecordingApp(app)
         }
         
@@ -43,11 +102,15 @@ class AppTracker: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-            let bundleId = app.bundleIdentifier
-            let appName = app.localizedName
             
             Task { @MainActor [weak self] in
                 guard let self = self, self.isTracking else { return }
+                
+                // Skip ignored apps
+                guard self.shouldTrackApp(app) else { return }
+                
+                let bundleId = app.bundleIdentifier
+                let appName = app.localizedName
                 self.switchToApp(name: appName, bundleIdentifier: bundleId)
             }
         }
@@ -103,6 +166,15 @@ class AppTracker: ObservableObject {
             try viewContext.save()
         } catch {
             print("Failed to save context: \(error)")
+        }
+    }
+    
+    deinit {
+        if let observer = sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+        if let observer = wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
     }
 }
