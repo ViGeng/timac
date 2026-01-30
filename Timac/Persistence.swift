@@ -41,6 +41,16 @@ struct PersistenceController {
         container = NSPersistentContainer(name: "Timac")
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        } else {
+            // Store in iCloud Drive for sync across devices
+            if let icloudURL = FileManager.default.url(forUbiquityContainerIdentifier: nil)?
+                .appendingPathComponent("Documents")
+                .appendingPathComponent("Timac") {
+                try? FileManager.default.createDirectory(at: icloudURL, withIntermediateDirectories: true)
+                let storeURL = icloudURL.appendingPathComponent("Timac.sqlite")
+                container.persistentStoreDescriptions.first?.url = storeURL
+            }
+            // Fallback to local if iCloud not available
         }
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {

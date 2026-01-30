@@ -150,6 +150,7 @@ jobs:
               "~/Library/Application Support/Timac",
               "~/Library/Preferences/com.timac.Timac.plist",
               "~/Library/Saved Application State/com.timac.Timac.savedState",
+              "~/Library/Mobile Documents/iCloud~com~timac~Timac/Documents/Timac",
             ]
           end
           EOF
