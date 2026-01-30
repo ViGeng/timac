@@ -2,7 +2,7 @@
 
 A simple macOS menu bar app that tracks time spent on each application.
 
-![alt text](image.png)
+<img src="image.png" alt="alt text" width="50%">
 
 ## Features
 
@@ -14,7 +14,14 @@ A simple macOS menu bar app that tracks time spent on each application.
 
 ## Installation
 
-### Option 1: Download from GitHub Releases
+### Option 1: Homebrew (Recommended)
+
+```bash
+brew tap ViGeng/tap
+brew install --cask timac
+```
+
+### Option 2: Download from GitHub Releases
 
 1. Go to the [Releases](https://github.com/ViGeng/Timac/releases) page
 2. Download `Timac.dmg` or `Timac.zip`
@@ -24,13 +31,6 @@ A simple macOS menu bar app that tracks time spent on each application.
    xattr -cr /Applications/Timac.app
    ```
    Or right-click the app → Open → Open (to bypass Gatekeeper once)
-
-### Option 2: Homebrew (coming soon)
-
-```bash
-brew tap ViGeng/tap
-brew install --cask timac
-```
 
 ### Option 3: Build from source
 
