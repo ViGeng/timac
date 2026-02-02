@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import Combine
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -50,6 +51,25 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
+                // Column headers
+                HStack(spacing: 6) {
+                    Spacer()
+                        .frame(width: 24) // Icon space
+                    
+                    Text("App")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Text("Median")
+                        .frame(width: 50, alignment: .center)
+                    
+                    Text("Total")
+                        .frame(width: 80, alignment: .center)
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                
                 ScrollView {
                     LazyVStack(spacing: 4) {
                         ForEach(usageStats) { stat in
@@ -84,6 +104,13 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .help("Reset all data")
                 
+                Button(action: exportToCSV) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.bordered)
+                .help("Export to CSV")
+                
                 Spacer()
                 
                 Button("Quit") {
@@ -94,7 +121,7 @@ struct ContentView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
-        .frame(width: 300, height: 400)
+        .frame(width: 380, height: 400)
         .onAppear {
             refreshStats()
         }
@@ -145,6 +172,54 @@ struct ContentView: View {
         // Resume tracking
         tracker.startTracking()
     }
+    
+    private func exportToCSV() {
+        // Fetch all records
+        let fetchRequest: NSFetchRequest<AppUsageRecord> = AppUsageRecord.fetchRequest()
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \AppUsageRecord.frontBegin, ascending: true)]
+        
+        do {
+            let records = try viewContext.fetch(fetchRequest)
+            
+            // Build CSV content
+            var csvContent = "App Name,Bundle ID,Start Time,End Time,Duration (seconds)\n"
+            let dateFormatter = ISO8601DateFormatter()
+            
+            for record in records {
+                let appName = record.appName ?? "Unknown"
+                let bundleId = record.bundleIdentifier ?? ""
+                let startTime = record.frontBegin.map { dateFormatter.string(from: $0) } ?? ""
+                let endTime = record.frontEnd.map { dateFormatter.string(from: $0) } ?? ""
+                let duration: TimeInterval
+                if let begin = record.frontBegin {
+                    let end = record.frontEnd ?? Date()
+                    duration = end.timeIntervalSince(begin)
+                } else {
+                    duration = 0
+                }
+                
+                // Escape fields with commas or quotes
+                let escapedAppName = appName.contains(",") || appName.contains("\"") 
+                    ? "\"\(appName.replacingOccurrences(of: "\"", with: "\"\""))\"" 
+                    : appName
+                
+                csvContent += "\(escapedAppName),\(bundleId),\(startTime),\(endTime),\(Int(duration))\n"
+            }
+            
+            // Show save panel
+            let savePanel = NSSavePanel()
+            savePanel.allowedContentTypes = [.commaSeparatedText]
+            savePanel.nameFieldStringValue = "timac_export_\(Date().formatted(.dateTime.year().month().day())).csv"
+            savePanel.title = "Export App Usage Data"
+            savePanel.message = "Choose where to save the CSV file"
+            
+            if savePanel.runModal() == .OK, let url = savePanel.url {
+                try csvContent.write(to: url, atomically: true, encoding: .utf8)
+            }
+        } catch {
+            print("Failed to export data: \(error)")
+        }
+    }
 }
 
 struct AppUsageRow: View {
@@ -156,8 +231,20 @@ struct AppUsageRow: View {
         return CGFloat(stat.totalDuration / maxDuration)
     }
     
+    // Focus quality based on median duration
+    private var focusQuality: (color: Color, label: String) {
+        let median = stat.medianDuration
+        if median >= 120 { // >= 2 minutes = deep focus
+            return (.green, "Deep")
+        } else if median >= 30 { // >= 30 seconds = moderate
+            return (.yellow, "Moderate")
+        } else { // < 30 seconds = scattered
+            return (.orange, "Scattered")
+        }
+    }
+    
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             // App icon
             AppIconView(bundleIdentifier: stat.bundleIdentifier)
                 .frame(width: 24, height: 24)
@@ -167,25 +254,48 @@ struct AppUsageRow: View {
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            // Duration bar + text
-            HStack(spacing: 6) {
-                // Histogram bar
-                GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.accentColor.opacity(0.7))
-                        .frame(width: geo.size.width * barRatio)
-                }
-                .frame(width: 50, height: 12)
+            // Median focus time as colored pill badge
+            ZStack(alignment: .center) {
+                Capsule()
+                    .fill(focusQuality.color)
+                    .frame(width: 44, height: 18)
                 
-                // Duration text with fixed width for alignment
-                Text(stat.formattedDuration)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .frame(width: 58, alignment: .trailing)
+                Text(stat.formattedMedianDuration)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 44, alignment: .center)
             }
+            .frame(width: 50, height: 18, alignment: .center)
+            .help("\(focusQuality.label) focus")
+            
+            // Duration bar with text inside, right-aligned
+            ZStack(alignment: .trailing) {
+                // Background track
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(width: 80, height: 20)
+                
+                // Fill bar (right-aligned, grows from right)
+                GeometryReader { geo in
+                    HStack {
+                        Spacer()
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.accentColor.opacity(0.6))
+                            .frame(width: geo.size.width * barRatio)
+                    }
+                }
+                .frame(width: 80, height: 20)
+                
+                // Duration text overlay
+                Text(stat.formattedDuration)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 6)
+            }
+            .frame(width: 80, height: 20)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(Color.primary.opacity(0.03))
         .cornerRadius(6)
     }

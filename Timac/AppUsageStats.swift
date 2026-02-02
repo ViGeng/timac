@@ -36,11 +36,20 @@ struct AppUsageSummary: Identifiable {
     let appName: String
     let bundleIdentifier: String?
     let totalDuration: TimeInterval
+    let medianDuration: TimeInterval
     
     var formattedDuration: String {
-        let hours = Int(totalDuration) / 3600
-        let minutes = (Int(totalDuration) % 3600) / 60
-        let seconds = Int(totalDuration) % 60
+        formatDuration(totalDuration)
+    }
+    
+    var formattedMedianDuration: String {
+        formatDuration(medianDuration)
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+        let seconds = Int(duration) % 60
         
         if hours > 0 {
             return String(format: "%2dh %2dm", hours, minutes)
@@ -69,7 +78,7 @@ class AppUsageStats {
     }
     
     private static func aggregateRecords(_ records: [AppUsageRecord]) -> [AppUsageSummary] {
-        var appDurations: [String: (duration: TimeInterval, bundleId: String?)] = [:]
+        var appData: [String: (durations: [TimeInterval], bundleId: String?)] = [:]
         let now = Date()
         
         for record in records {
@@ -77,15 +86,37 @@ class AppUsageStats {
             let end = record.frontEnd ?? now
             let duration = end.timeIntervalSince(begin)
             
-            if let existing = appDurations[appName] {
-                appDurations[appName] = (existing.duration + duration, existing.bundleId ?? record.bundleIdentifier)
+            if var existing = appData[appName] {
+                existing.durations.append(duration)
+                existing.bundleId = existing.bundleId ?? record.bundleIdentifier
+                appData[appName] = existing
             } else {
-                appDurations[appName] = (duration, record.bundleIdentifier)
+                appData[appName] = ([duration], record.bundleIdentifier)
             }
         }
         
-        return appDurations
-            .map { AppUsageSummary(appName: $0.key, bundleIdentifier: $0.value.bundleId, totalDuration: $0.value.duration) }
+        return appData
+            .map { (appName, data) in
+                let totalDuration = data.durations.reduce(0, +)
+                let medianDuration = calculateMedian(data.durations)
+                return AppUsageSummary(
+                    appName: appName,
+                    bundleIdentifier: data.bundleId,
+                    totalDuration: totalDuration,
+                    medianDuration: medianDuration
+                )
+            }
             .sorted { $0.totalDuration > $1.totalDuration }
+    }
+    
+    private static func calculateMedian(_ values: [TimeInterval]) -> TimeInterval {
+        guard !values.isEmpty else { return 0 }
+        let sorted = values.sorted()
+        let count = sorted.count
+        if count % 2 == 0 {
+            return (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+        } else {
+            return sorted[count / 2]
+        }
     }
 }

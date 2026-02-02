@@ -2,10 +2,11 @@
 
 A simple macOS menu bar app that tracks time spent on each application.
 
-<img src="image.png" alt="alt text" width="50%">
+<img src="doc/image.png" alt="alt text" width="30%">
 
 ## Roadmap
 
+- [ ] Record operations (mouse and keyboard behaviors) for activity recordings
 - [ ] Save ADHD!
 
 ## Features
@@ -67,3 +68,4 @@ xcodebuild -project Timac.xcodeproj -scheme Timac -configuration Release
 - **Core Data**: Stores `AppUsageRecord` entities with app name, bundle ID, and time ranges
 - **AppTracker**: Singleton that monitors frontmost app changes via NSWorkspace notifications
 - **AppUsageStats**: Aggregates records into usage summaries for different time scales
+
