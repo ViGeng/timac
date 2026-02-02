@@ -4,6 +4,10 @@ A simple macOS menu bar app that tracks time spent on each application.
 
 <img src="image.png" alt="alt text" width="50%">
 
+## Roadmap
+
+- [ ] Save ADHD!
+
 ## Features
 
 - **Menu Bar App**: Lives in the menu bar with an hourglass icon (⏳)
