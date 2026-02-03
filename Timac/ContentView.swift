@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject private var tracker = AppTracker.shared
+    @ObservedObject private var loginItemManager = LoginItemManager.shared
     @State private var usageStats: [AppUsageSummary] = []
     @State private var selectedTimeScale: TimeScale = .today
     @State private var showResetAlert = false
@@ -85,17 +86,15 @@ struct ContentView: View {
             
             // Controls
             HStack(spacing: 8) {
-                Button(action: toggleTracking) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(tracker.isTracking ? Color.green : Color.gray)
-                            .frame(width: 8, height: 8)
-                        Image(systemName: tracker.isTracking ? "pause.fill" : "play.fill")
-                            .font(.system(size: 11))
-                        Text(tracker.isTracking ? "Pause" : "Start")
-                    }
+                Toggle(isOn: Binding(
+                    get: { tracker.isTracking },
+                    set: { _ in toggleTracking() }
+                )) {
+                    Text("Record")
+                        .font(.system(size: 11))
                 }
-                .buttonStyle(.bordered)
+                .toggleStyle(.switch)
+                .controlSize(.mini)
                 
                 Button(action: { showResetAlert = true }) {
                     Image(systemName: "trash")
@@ -112,6 +111,13 @@ struct ContentView: View {
                 .help("Export to CSV")
                 
                 Spacer()
+                
+                Toggle(isOn: $loginItemManager.isEnabled) {
+                    Text("Autolaunch")
+                        .font(.system(size: 11))
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
                 
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)

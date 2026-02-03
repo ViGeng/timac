@@ -13,6 +13,7 @@ A simple macOS menu bar app that tracks time spent on each application.
 
 - **Menu Bar App**: Lives in the menu bar with an hourglass icon (⏳)
 - **App Tracking**: Monitors the frontmost application and records usage time
+- **Launch at Login**: Optional auto-start when you log in to your Mac
 - **Time Scale Selection**: View usage for Today, This Week, Last 7 Days, or Last Month
 - **Start/Pause**: Control tracking with a single click
 - **Clean UI**: Native macOS design with histogram bars
